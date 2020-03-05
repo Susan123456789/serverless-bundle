@@ -1,4 +1,5 @@
 const path = require("path");
+const StringReplacePlugin = require("string-replace-webpack-plugin");
 const webpack = require("webpack");
 const slsw = require("serverless-webpack");
 const HardSourceWebpackPlugin = require("hard-source-webpack-plugin");
@@ -77,9 +78,24 @@ function loaders() {
         exclude: /node_modules/,
         use: [babelLoader()]
       },
-      {enforce: 'post', test: /unicode-properties[\/\\]index.js$/, loader: "transform-loader?brfs"},
-      {enforce: 'post', test: /fontkit[\/\\]index.js$/, loader: "transform-loader?brfs"},
-      {enforce: 'post', test: /linebreak[\/\\]src[\/\\]linebreaker.js/, loader: "transform-loader?brfs"}
+      {
+        enforce: 'pre',
+        test: /unicode-properties[\/\\]unicode-properties/,
+        loader: StringReplacePlugin.replace({
+          replacements: [
+            {
+              pattern: "var fs = _interopDefault(require('fs'));",
+              replacement: function () {
+                return "var fs = require('fs');";
+              }
+            }
+          ]
+        })
+      },
+      {test: /unicode-properties[\/\\]unicode-properties/, loader: "transform-loader?brfs"},
+      {test: /pdfkit[/\\]js[/\\]/, loader: "transform-loader?brfs"},
+      {test: /fontkit[\/\\]index.js$/, loader: "transform-loader?brfs"},
+      {test: /linebreak[\/\\]src[\/\\]linebreaker.js/, loader: "transform-loader?brfs"}
     ]
   };
 
@@ -128,6 +144,8 @@ function plugins() {
     );
   }
 
+  plugins.push(new StringReplacePlugin());
+
   return plugins;
 }
 
@@ -150,7 +168,11 @@ module.exports = ignoreWarmupPlugin({
     symlinks: false,
     // First start by looking for modules in the plugin's node_modules
     // before looking inside the project's node_modules.
-    modules: [path.resolve(__dirname, "node_modules"), "node_modules"]
+    modules: [path.resolve(__dirname, "node_modules"), "node_modules"],
+    alias: {
+      'unicode-properties': 'unicode-properties/unicode-properties.cjs.js',
+      'pdfkit': 'pdfkit/js/pdfkit.js'
+    }
   },
   // Add loaders
   module: loaders(),
